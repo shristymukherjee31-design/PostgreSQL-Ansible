@@ -1,0 +1,53 @@
+---
+- name: Install PostgreSQL on Ubuntu
+  hosts: Database
+  become: true
+
+  vars:
+
+    postgres_version: "16"
+    postgres_port: 5432
+    postgres_max_connections: 100
+    postgres_listen_address: "localhost"
+
+
+  tasks:
+
+    - name: Display operating system
+      ansible.builtin.debug:
+         msg: "Operating System: {{ ansible_facts.distribution }}"
+
+    - name: Install PostgreSQL
+      ansible.builtin.apt:
+         name: "postgresql-{{ postgres_version }}"
+         state: present
+         update_cache: true
+
+    - name: Ensure PostreSQL service is running
+      ansible.builtin.service:
+         name: postgresql
+         state: started
+         enabled: true
+
+    - name: Configure PostgreSQL
+      ansible.builtin.template:
+        src: templates/postgresql.conf.j2
+        dest: "/etc/postgresql/{{ postgres_version }}/main/postgresql.conf"
+      notify: Restart PostgreSQL
+
+    - name: Check PostgreSQL service status
+      ansible.builtin.command:
+        cmd: systemctl is-active postgresql
+      register: postgres_status
+      changed_when: false
+
+    - name: Display PostgreSQL service status
+      ansible.builtin.debug:
+        var: postgres_status.stdout
+
+  handlers:
+
+    - name: Restart PostgreSQL
+      ansible.builtin.service:
+        name: postgresql
+        state: restarted
